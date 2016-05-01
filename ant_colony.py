@@ -1,3 +1,5 @@
+#inspired by: http://www.codeproject.com/Articles/855419/Ant-Colony-Optimization-to-solve-a-classic-Asymmet
+#optmization of parameters from: http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.96.6751&rep=rep1&type=pdf
 class ant_colony:
 	class ant:
 		def __init__(self, init_location, possible_locations, pheromone_map, distance_callback, alpha, beta, first_pass=False):
