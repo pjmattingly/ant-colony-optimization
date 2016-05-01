@@ -374,7 +374,6 @@ class ant_colony:
 			new_pheromone_value = self.pheromone_constant/ant.get_distance_traveled()
 			
 			self.ant_updated_pheromone_map[route[i]][route[i+1]] = current_pheromone_value + new_pheromone_value
-			self.ant_updated_pheromone_map[route[i+1]][route[i]] = current_pheromone_value + new_pheromone_value
 		
 	def mainloop(self):
 		"""
