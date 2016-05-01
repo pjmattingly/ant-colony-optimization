@@ -1,5 +1,3 @@
-#inspired by: http://www.codeproject.com/Articles/855419/Ant-Colony-Optimization-to-solve-a-classic-Asymmet
-#optmization of parameters from: http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.96.6751&rep=rep1&type=pdf
 class ant_colony:
 	class ant:
 		def __init__(self, init_location, possible_locations, pheromone_map, distance_callback, alpha, beta, first_pass=False):
@@ -44,8 +42,7 @@ class ant_colony:
 				_traverse() to:
 					_update_route() (to show latest traversal)
 					_update_distance_traveled() (after traversal)
-			after complete, use get_route() and get_distance_traveled() to:
-			return the ants route and its distance, for use in ant_colony
+			return the ants route and its distance, for use in ant_colony:
 				do pheromone updates
 				check for new possible optimal solution with this ants latest tour
 			"""
@@ -61,9 +58,6 @@ class ant_colony:
 			implements the path selection algorithm of ACO
 			calculate the attractiveness of each possible transition from the current location
 			then randomly choose a next path, based on its attractiveness
-			
-			called from:
-				run()
 			"""
 			#on the first pass (no pheromones), then we can just choice() to find the next one
 			if self.first_pass:
@@ -92,7 +86,7 @@ class ant_colony:
 			#randomly choose the next path
 			import random
 			toss = random.random()
-			
+					
 			cummulative = 0
 			for possible_next_location in attractiveness:
 				weight = (attractiveness[possible_next_location] / sum_total)
@@ -123,31 +117,32 @@ class ant_colony:
 		def _update_distance_traveled(self, start, end):
 			"""
 			use self.distance_callback to update self.distance_traveled
-			called from:
-				_traverse()
 			"""
 			self.distance_traveled += float(self.distance_callback(start, end))
 	
 		def get_route(self):
-			"""
-			returns the route after a completed tour
-			"""
 			if self.tour_complete:
 				return self.route
 			return None
 			
 		def get_distance_traveled(self):
-			"""
-			returns total distance traveled along a tour, after completing that tour
-			"""
 			if self.tour_complete:
 				return self.distance_traveled
 			return None
 		
-	def __init__(self, nodes, distance_callback, ant_count=50, alpha=.5, beta=1.0,  pheromone_evaporation_coefficient=.40, pheromone_constant=1000.0, iterations=80):
+	def __init__(self, nodes, distance_callback, start=None, ant_count=50, alpha=.5, beta=1.2,  pheromone_evaporation_coefficient=.40, pheromone_constant=1000.0, iterations=80):
 		"""
 		initializes an ant colony (houses a number of worker ants that will traverse a map to find an optimal route as per ACO [Ant Colony Optimization])
 		source: https://en.wikipedia.org/wiki/Ant_colony_optimization_algorithms
+		
+		nodes -> is assumed to be a dict() mapping node ids to values 
+			that are understandable by distance_callback
+			
+		distance_callback -> is assumed to take a pair of coordinates and return the distance between them
+			populated into distance_matrix on each call to get_distance()
+			
+		start -> if set, then is assumed to be the node where all ants start their traversal
+			if unset, then assumed to be the first key of nodes when sorted()
 		
 		distance_matrix -> holds values of distances calculated between nodes
 			populated on demand by _get_distance()
@@ -160,12 +155,6 @@ class ant_colony:
 		ant_updated_pheromone_map -> a matrix to hold the pheromone values that the ants lay down
 			not used to dissipate, values from here are added to pheromone_map after dissipation step
 			(reset for each traversal)
-			
-		nodes -> is assumed to be a dict() with integer keys, increasing from 0 to n-1
-			and values that are coordinates understandable by distance_callback
-			
-		distance_callback -> is assumed to take a pair of coordinates and return the distance between them
-			populated into distance_matrix on each call to get_distance()
 			
 		alpha -> a parameter from the ACO algorithm to control the influence of the amount of pheromone when an ant makes a choice
 		
@@ -191,66 +180,147 @@ class ant_colony:
 		
 		shortets_path_seen -> the shortest path seen from a traversal (shortest_distance is the distance along this path)
 		"""
+		#nodes
+		if type(nodes) is not dict:
+			raise TypeError("nodes must be dict")
 		
+		if len(nodes) < 1:
+			raise ValueError("there must be at least one node in dict nodes")
+		
+		#create internal mapping and mapping for return to caller
+		self.id_to_key, self.nodes = self._init_nodes(nodes)
+		#create matrix to hold distance calculations between nodes
 		self.distance_matrix = self._init_matrix(len(nodes))
-		self.pheromone_map = self._init_matrix(len(nodes), value=0)
-		self.ant_updated_pheromone_map = self._init_matrix(len(nodes), value=0)
+		#create matrix for master pheromone map, that records pheromone amounts along routes
+		self.pheromone_map = self._init_matrix(len(nodes))
+		#create a matrix for ants to add their pheromones to, before adding those to pheromone_map during the update_pheromone_map step
+		self.ant_updated_pheromone_map = self._init_matrix(len(nodes))
 		
+		#distance_callback
+		if not callable(distance_callback):
+			raise TypeError("distance_callback is not callable, should be method")
+			
 		self.distance_callback = distance_callback
-		self.nodes = nodes
-		self.alpha = float(alpha)
-		assert(self.alpha >= 0.0)	#requirement of ACO
-		self.beta = float(beta)
-		assert(self.beta >= 1.0)	#requirement of ACO
-		self.pheromone_constant = float(pheromone_constant)
-		self.pheromone_evaporation_coefficient = float(pheromone_evaporation_coefficient)
-		self.first_pass = True
+		
+		#start
+		if start is None:
+			self.start = 0
+		else:
+			self.start = None
+			#init start to internal id of node id passed
+			for key, value in self.id_to_key.items():
+				if value == start:
+					self.start = key
+			
+			#if we didn't find a key in the nodes passed in, then raise
+			if self.start is None:
+				raise KeyError("Key: " + str(start) + " not found in the nodes dict passed.")
+		
+		#ant_count
+		if type(ant_count) is not int:
+			raise TypeError("ant_count must be int")
+			
+		if ant_count < 1:
+			raise ValueError("ant_count must be >= 1")
+		
 		self.ant_count = ant_count
-		self.ants = self._init_ants()
+		
+		#alpha	
+		if (type(alpha) is not int) and type(alpha) is not float:
+			raise TypeError("alpha must be int or float")
+		
+		if alpha < 0:
+			raise ValueError("alpha must be >= 0")
+		
+		self.alpha = float(alpha)
+		
+		#beta
+		if (type(beta) is not int) and type(beta) is not float:
+			raise TypeError("beta must be int or float")
+			
+		if beta < 1:
+			raise ValueError("beta must be >= 1")
+			
+		self.beta = float(beta)
+		
+		#pheromone_evaporation_coefficient
+		if (type(pheromone_evaporation_coefficient) is not int) and type(pheromone_evaporation_coefficient) is not float:
+			raise TypeError("pheromone_evaporation_coefficient must be int or float")
+		
+		self.pheromone_evaporation_coefficient = float(pheromone_evaporation_coefficient)
+		
+		#pheromone_constant
+		if (type(pheromone_constant) is not int) and type(pheromone_constant) is not float:
+			raise TypeError("pheromone_constant must be int or float")
+		
+		self.pheromone_constant = float(pheromone_constant)
+		
+		#iterations
+		if (type(iterations) is not int):
+			raise TypeError("iterations must be int")
+		
+		if iterations < 0:
+			raise ValueError("iterations must be >= 0")
+			
 		self.iterations = iterations
+		
+		#other internal variable init
+		self.first_pass = True
+		self.ants = self._init_ants(self.start)
 		self.shortest_distance = None
 		self.shortest_path_seen = None
 		
 	def _get_distance(self, start, end):
 		"""
 		uses the distance_callback to return the distance between nodes
-		note that distances are assumed to be symmetric
-			e.g. that distance_matrix[0][1] == distance_matrix[1][0]
 		if a distance has not been calculated before, then it is populated in distance_matrix and returned
 		if a distance has been called before, then its value is returned from distance_matrix
-		called from:
-			ant methods
 		"""
 		if not self.distance_matrix[start][end]:
-			distance = float(self.distance_callback(self.nodes[start], self.nodes[end]))
-			self.distance_matrix[start][end] = distance
-			self.distance_matrix[end][start] = distance
+			distance = self.distance_callback(self.nodes[start], self.nodes[end])
+			
+			if (type(distance) is not int) and (type(distance) is not float):
+				raise TypeError("distance_callback should return either int or float, saw: "+ str(type(distance)))
+			
+			self.distance_matrix[start][end] = float(distance)
 			return distance
 		return self.distance_matrix[start][end]
+		
+	def _init_nodes(self, nodes):
+		"""
+		create a mapping of internal id numbers (0 .. n) to the keys in the nodes passed 
+		create a mapping of the id's to the values of nodes
+		we use id_to_key to return the route in the node names the caller expects in mainloop()
+		"""
+		id_to_key = dict()
+		id_to_values = dict()
+		
+		id = 0
+		for key in sorted(nodes.keys()):
+			id_to_key[id] = key
+			id_to_values[id] = nodes[key]
+			id += 1
+			
+		return id_to_key, id_to_values
 		
 	def _init_matrix(self, size, value=0.0):
 		"""
 		setup a matrix NxN (where n = size)
 		used in both self.distance_matrix and self.pheromone_map
-		as they require identical matrixes
-		called from:
-			__init__()
+		as they require identical matrixes besides which value to initialize to
 		"""
 		ret = []
 		for row in range(size):
 			ret.append([float(value) for x in range(size)])
 		return ret
 	
-	def _init_ants(self, start=0):
+	def _init_ants(self, start):
 		"""
 		on first pass:
 			create a number of ant objects
 		on subsequent passes, just call __init__ on each to reset them
 		by default, all ants start at the first node, 0
 		as per problem description: https://www.codeeval.com/open_challenges/90/
-		called from:
-			__init__()
-			mainloop()
 		"""
 		#allocate new ants on the first pass
 		if self.first_pass:
@@ -273,8 +343,10 @@ class ant_colony:
 			for end in range(len(self.pheromone_map)):
 				#decay the pheromone value at this location
 				#tau_xy <- (1-rho)*tau_xy	(ACO)
+				#_DEBUG("BEFORE decay: " + str(self.pheromone_map[start][end]))
 				self.pheromone_map[start][end] = (1-self.pheromone_evaporation_coefficient)*self.pheromone_map[start][end]
-								
+				#_DEBUG("AFTER decay: " + str(self.pheromone_map[start][end]))
+				
 				#then add all contributions to this location for each ant that travered it
 				#(ACO)
 				#tau_xy <- tau_xy + delta tau_xy_k
@@ -305,13 +377,9 @@ class ant_colony:
 	def mainloop(self):
 		"""
 		Runs the worker ants, collects their returns and updates the pheromone map with pheromone values from workers
-		as well as recording the last seen shortest path
 			calls:
+			_update_pheromones()
 			ant.run()
-			_populate_ant_updated_pheromone_map() (to put down pheromones where the ants have been on the last pass)
-			_update_pheromone_map()	(decay old pheromone values and add new values from the latest ant traversals)
-			_init_matrix()	(to reset ant_updated_pheromone_map for next traversal by all ants)
-			_init_ants()
 		runs the simulation self.iterations times
 		"""
 		for _ in range(self.iterations):
@@ -341,8 +409,14 @@ class ant_colony:
 				self.first_pass = False
 			
 			#reset all ants to default for the next iteration
-			self._init_ants()
+			self._init_ants(self.start)
 			
 			#reset ant_updated_pheromone_map to record pheromones for ants on next pass
-			self.ant_updated_pheromone_map = self._init_matrix(len(self.nodes))
-		return self.shortest_path_seen
+			self.ant_updated_pheromone_map = self._init_matrix(len(self.nodes), value=0)
+		
+		#translate shortest path back into callers node id's
+		ret = []
+		for id in self.shortest_path_seen:
+			ret.append(self.id_to_key[id])
+		
+		return ret
