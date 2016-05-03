@@ -9,7 +9,7 @@ import ant_colony
 
 test_nodes = {0: (0, 7), 1: (3, 9), 2: (12, 4), 3: (14, 11), 4: (8, 11), 5: (15, 6), 6: (6, 15), 7: (15, 9), 8: (12, 10), 9: (10, 7)}
 
-//...and a functon to get distance between nodes...
+//...and a function to get distance between nodes...
 
 def distance(start, end):
 	x_distance = abs(start[0] - end[0])
@@ -35,8 +35,10 @@ Ant Colony Optimization is intended to solve combinatoric optimization problems
 coordinates of those nodes and give it a distance function call back that can take the coordinates and it will solve it using
 the ACO algorithm as described.
 
-An effort has been made to initialize the algorithm's variables (alpha, beta, Q, etc) to sensible default. But your TSP problem
+An effort has been made to initialize the algorithm's variables (alpha, beta, Q, etc) to sensible defaults. But your TSP problem
 may differ significantly from the testing set (see test director) and may perform more poorly than optimal.
 
 The solution is NOT multithreaded at this time, but I have laid the groundwork for adapting it to a multithreaded solution
 (have the ant class inherit from 'thread' then have its init() run thread.init(), etc).
+
+A full description of the behavior of the algorithm can be found here: https://en.wikipedia.org/wiki/Ant_colony_optimization_algorithms#Example_pseudo-code_and_formula
