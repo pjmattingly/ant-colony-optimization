@@ -39,4 +39,4 @@ An effort has been made to initialize the algorithm's variables (alpha, beta, Q,
 may differ significantly from the testing set (see test director) and may perform more poorly than optimal.
 
 The solution is NOT multithreaded at this time, but I have laid the groundwork for adapting it to a multithreaded solution
-(have the ant class inherit from 'thread' then have its init() run'thread.init(), etc).
+(have the ant class inherit from 'thread' then have its init() run thread.init(), etc).
