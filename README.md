@@ -6,6 +6,7 @@ Implementation of the Ant Colony Optimization algorithm (python)
 import ant_colony
 		
 //given some nodes, and some locations...
+
 test_nodes = {0: (0, 7), 1: (3, 9), 2: (12, 4), 3: (14, 11), 4: (8, 11), 5: (15, 6), 6: (6, 15), 7: (15, 9), 8: (12, 10), 9: (10, 7)}
 
 //...and a functon to get distance between nodes...
