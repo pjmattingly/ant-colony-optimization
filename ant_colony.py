@@ -1,5 +1,8 @@
-#inspired by: http://www.codeproject.com/Articles/855419/Ant-Colony-Optimization-to-solve-a-classic-Asymmet
-#optmization of parameters from: http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.96.6751&rep=rep1&type=pdf
+debug = True
+
+def _DEBUG(msg):
+	if debug: print("[DEBUG]" + str(msg))
+	
 class ant_colony:
 	class ant:
 		def __init__(self, init_location, possible_locations, pheromone_map, distance_callback, alpha, beta, first_pass=False):
@@ -80,9 +83,18 @@ class ant_colony:
 				sum_total += attractiveness[possible_next_location]
 			
 			#it may be possible to have small values for pheromone amount / distance, such that with rounding errors this is equal to zero
-			#not very common, but catch when it happens
+			#rare, but catch when it happens
 			if sum_total == 0.0:
-				raise AssertionError(attractiveness)
+				#source:
+				#http://stackoverflow.com/a/6163157/5343977
+				#>	http://stackoverflow.com/a/5756149/5343977
+				#>	>	https://docs.python.org/3/library/decimal.html#decimal.Decimal.next_plus
+				#increment all zero's, such that they are the smallest non-zero values supported by the system
+				import decimal
+				for key in attractiveness:
+					attractiveness[key] = decimal.Decimal(attractiveness[key]).next_plus()
+					_DEBUG(attractiveness[key])
+				sum_total = decimal.Decimal(sum_total).next_plus()
 			
 			#cumulative probability behavior, inspired by: http://stackoverflow.com/a/3679747/5343977
 			#randomly choose the next path
@@ -374,6 +386,7 @@ class ant_colony:
 			new_pheromone_value = self.pheromone_constant/ant.get_distance_traveled()
 			
 			self.ant_updated_pheromone_map[route[i]][route[i+1]] = current_pheromone_value + new_pheromone_value
+			self.ant_updated_pheromone_map[route[i+1]][route[i]] = current_pheromone_value + new_pheromone_value
 		
 	def mainloop(self):
 		"""
@@ -383,9 +396,21 @@ class ant_colony:
 			ant.run()
 		runs the simulation self.iterations times
 		"""
+		
+		_DEBUG("mainloop() START")
 		for _ in range(self.iterations):
+			#DEBUG
+			ant_enumeration = dict()
+			ant_count = 0
+			
 			for ant in self.ants:
+				#DEBUG
+				ant_enumeration[ant] = ant_count
+				ant_count += 1
+				
+				_DEBUG("iteration: " + str(_) + " ant: " + str(ant_enumeration[ant]) + " run() START")
 				ant.run()
+				_DEBUG("ant.run() END")
 				
 				#update ant_updated_pheromone_map with this ant's constribution of pheromones along its route
 				self._populate_ant_updated_pheromone_map(ant)
@@ -420,4 +445,19 @@ class ant_colony:
 		for id in self.shortest_path_seen:
 			ret.append(self.id_to_key[id])
 		
+		_DEBUG("mainloop() END")
 		return ret
+
+# def distance(start, end):
+	# x_distance = abs(start[0] - end[0])
+	# y_distance = abs(start[1] - end[1])
+	
+	# #c = sqrt(a^2 + b^2)
+	# import math	
+	# return math.sqrt(pow(x_distance, 2) + pow(y_distance, 2))
+	
+# test = {0: (0, 7), 1: (3, 9), 2: (12, 4), 3: (14, 11), 4: (8, 11), 5: (15, 6), 6: (6, 15), 7: (15, 9), 8: (12, 10), 9: (10, 7)}
+
+# colony = ant_colony(test, distance, iterations=2, ant_count=2)
+# result = colony.mainloop()
+# print(result)
