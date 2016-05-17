@@ -773,17 +773,7 @@ class TestAntPickPath(unittest.TestCase):
 		#setup a pheromone map to use when picking the next path to choose
 		#	doing the len(test_object.possible_locations)+1 in this case as in all instances the list of possible locations will be smaller than the pheromone map, as the ant is always initialized to a starting location and possible_locations is decrimented to reflect that (we can't traverse to our starting location)
 		test_object.pheromone_map = _init_matrix(len(test_object.possible_locations)+1, value=0.0)
-		
-		#setup pheromone trail between paths we want to choose from
-		# test_object.pheromone_map[0][1] = 1
-		# test_object.pheromone_map[0][2] = 2
-		# test_object.pheromone_map[0][3] = 3
-		# test_object.pheromone_map[0][4] = 4
-		# test_object.pheromone_map[0][5] = 5
-		# test_object.pheromone_map[0][6] = 6
-		# test_object.pheromone_map[0][7] = 7
-		# test_object.pheromone_map[0][8] = 8
-		# test_object.pheromone_map[0][9] = 9
+		#BUT keep all pheromone values at zero, to simulate the corner case of the attractiveness of each path being zero, as per the corner case
 		
 		#setup the distance callback to get a value for the distance between nodes
 		def mock_distance_callback(start, end):
@@ -795,14 +785,6 @@ class TestAntPickPath(unittest.TestCase):
 		test_object.alpha = 1
 		test_object.beta = 1
 		
-		debug = True
-		def _DEBUG_ARRAY(array):
-			#transpose
-			if debug:
-				for row in list(zip(*array)):
-					print(row)
-		#_DEBUG_ARRAY(test_object.pheromone_map)
-		
 		#mock random.random() for testing
 		import random
 		
@@ -812,9 +794,8 @@ class TestAntPickPath(unittest.TestCase):
 		random_random_backup = random.random
 		random.random = mock_random
 		
-		#_DEBUG("picked path: " + str(test_object._pick_path()))
-		test_object._pick_path()
-		#self.assertEqual(test_object._pick_path(), 9)
+		#test_object._pick_path()
+		self.assertEqual(test_object._pick_path(), 1)
 		
 		#restore random.random()
 		random.random = random_random_backup

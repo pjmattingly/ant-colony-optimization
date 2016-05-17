@@ -85,16 +85,30 @@ class ant_colony:
 			#it may be possible to have small values for pheromone amount / distance, such that with rounding errors this is equal to zero
 			#rare, but catch when it happens
 			if sum_total == 0.0:
-				#source:
-				#http://stackoverflow.com/a/6163157/5343977
-				#>	http://stackoverflow.com/a/5756149/5343977
-				#>	>	https://docs.python.org/3/library/decimal.html#decimal.Decimal.next_plus
 				#increment all zero's, such that they are the smallest non-zero values supported by the system
-				import decimal
+				#source: http://stackoverflow.com/a/10426033/5343977
+				def next_up(x):
+					import math
+					import struct
+					# NaNs and positive infinity map to themselves.
+					if math.isnan(x) or (math.isinf(x) and x > 0):
+						return x
+
+					# 0.0 and -0.0 both map to the smallest +ve float.
+					if x == 0.0:
+						x = 0.0
+
+					n = struct.unpack('<q', struct.pack('<d', x))[0]
+					
+					if n >= 0:
+						n += 1
+					else:
+						n -= 1
+					return struct.unpack('<d', struct.pack('<q', n))[0]
+					
 				for key in attractiveness:
-					attractiveness[key] = decimal.Decimal(attractiveness[key]).next_plus()
-					_DEBUG(attractiveness[key])
-				sum_total = decimal.Decimal(sum_total).next_plus()
+					attractiveness[key] = next_up(attractiveness[key])
+				sum_total = next_up(sum_total)
 			
 			#cumulative probability behavior, inspired by: http://stackoverflow.com/a/3679747/5343977
 			#randomly choose the next path
@@ -357,9 +371,7 @@ class ant_colony:
 			for end in range(len(self.pheromone_map)):
 				#decay the pheromone value at this location
 				#tau_xy <- (1-rho)*tau_xy	(ACO)
-				#_DEBUG("BEFORE decay: " + str(self.pheromone_map[start][end]))
 				self.pheromone_map[start][end] = (1-self.pheromone_evaporation_coefficient)*self.pheromone_map[start][end]
-				#_DEBUG("AFTER decay: " + str(self.pheromone_map[start][end]))
 				
 				#then add all contributions to this location for each ant that travered it
 				#(ACO)
