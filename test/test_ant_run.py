@@ -13,10 +13,10 @@ class TestAntRun(unittest.TestCase):
 	def test_correct(self):
 		#Note: can't do this in setup because of python2's wonky OOP, doing it in the test instead
 		
-		#inherit from ant so we can call _pick_path correctly
 		class test_empty_object(module.ant_colony.ant):
-			#override each method EXCEPT _pick_path, to get a clean testing environment
-			def __init__(self): pass
+			def __init__(self):
+				from threading import Thread
+				Thread.__init__(self)
 			#def run(self): pass
 			def _traverse(self): pass
 			def _update_route(self): pass

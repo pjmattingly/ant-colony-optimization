@@ -36,9 +36,10 @@ class TestAntColonyMainLoop(unittest.TestCase):
 			return ret
 			
 		class mock_ant:
-			def run(self): pass
 			def get_distance_traveled(self): pass
 			def get_route(self): pass
+			def start(self): pass
+			def join(self): pass
 		
 		test_object.ants = [mock_ant()]
 		self.called_populate_ant_updated_pheromone_map = False

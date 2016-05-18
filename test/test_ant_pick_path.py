@@ -738,5 +738,67 @@ class TestAntPickPath(unittest.TestCase):
 		#restore random.random()
 		random.random = random_random_backup
 	
+	def test_corner_case_of_attractiveness_of_all_paths_equal_zero(self):
+		#Note: can't do this in setup because of python2's wonky OOP, doing it in the test instead
+		
+		module.debug = True
+		
+		#inherit from ant so we can call _pick_path correctly
+		class test_empty_object(module.ant_colony.ant):
+			#override each method EXCEPT _pick_path, to get a clean testing environment
+			def __init__(self): pass
+			def run(self): pass
+			def _traverse(self): pass
+			def _update_route(self): pass
+			def _update_distance_traveled(self): pass
+		test_object = test_empty_object()
+		
+		#borrowing _init_matrix() from the code for help with setup
+		def _init_matrix(size, value=None):
+			"""
+			setup a matrix NxN (where n = size)
+			used in both self.distance_matrix and self.pheromone_map
+			as they require identical matrixes besides which value to initialize to
+			"""
+			ret = []
+			for row in range(size):
+				ret.append([value for x in range(size)])
+			return ret
+		
+		#setting up object environment
+		test_object.first_pass = False
+		test_object.location = 0	#starting at the 0th position
+		test_object.possible_locations = [x for x in range(1, 10)]	#so we remove 0 from the list of possible locations for the next traversal
+		
+		#setup a pheromone map to use when picking the next path to choose
+		#	doing the len(test_object.possible_locations)+1 in this case as in all instances the list of possible locations will be smaller than the pheromone map, as the ant is always initialized to a starting location and possible_locations is decrimented to reflect that (we can't traverse to our starting location)
+		test_object.pheromone_map = _init_matrix(len(test_object.possible_locations)+1, value=0.0)
+		#BUT keep all pheromone values at zero, to simulate the corner case of the attractiveness of each path being zero, as per the corner case
+		
+		#setup the distance callback to get a value for the distance between nodes
+		def mock_distance_callback(start, end):
+			return (2*end - start) ** 2
+		
+		test_object.distance_callback = mock_distance_callback
+		
+		#setup alpha and beta for "attractiveness" calculation, where alpha and beta are parameters
+		test_object.alpha = 1
+		test_object.beta = 1
+		
+		#mock random.random() for testing
+		import random
+		
+		def mock_random():
+			return .99
+			
+		random_random_backup = random.random
+		random.random = mock_random
+		
+		#test_object._pick_path()
+		self.assertEqual(test_object._pick_path(), 1)
+		
+		#restore random.random()
+		random.random = random_random_backup
+		
 if __name__ == '__main__':
     unittest.main()

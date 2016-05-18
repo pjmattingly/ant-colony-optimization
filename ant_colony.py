@@ -1,7 +1,7 @@
-#inspired by: http://www.codeproject.com/Articles/855419/Ant-Colony-Optimization-to-solve-a-classic-Asymmet
-#optmization of parameters from: http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.96.6751&rep=rep1&type=pdf
+from threading import Thread
+
 class ant_colony:
-	class ant:
+	class ant(Thread):
 		def __init__(self, init_location, possible_locations, pheromone_map, distance_callback, alpha, beta, first_pass=False):
 			"""
 			initialized an ant, to traverse the map
@@ -21,6 +21,8 @@ class ant_colony:
 			tour_complete -> flag to indicate the ant has completed its traversal
 				used by get_route() and get_distance_traveled()
 			"""
+			Thread.__init__(self)
+			
 			self.init_location = init_location
 			self.possible_locations = possible_locations			
 			self.route = []
@@ -79,10 +81,33 @@ class ant_colony:
 				attractiveness[possible_next_location] = pow(pheromone_amount, self.alpha)*pow(1/distance, self.beta)
 				sum_total += attractiveness[possible_next_location]
 			
-			#it may be possible to have small values for pheromone amount / distance, such that with rounding errors this is equal to zero
-			#not very common, but catch when it happens
+			#it is possible to have small values for pheromone amount / distance, such that with rounding errors this is equal to zero
+			#rare, but handle when it happens
 			if sum_total == 0.0:
-				raise AssertionError(attractiveness)
+				#increment all zero's, such that they are the smallest non-zero values supported by the system
+				#source: http://stackoverflow.com/a/10426033/5343977
+				def next_up(x):
+					import math
+					import struct
+					# NaNs and positive infinity map to themselves.
+					if math.isnan(x) or (math.isinf(x) and x > 0):
+						return x
+
+					# 0.0 and -0.0 both map to the smallest +ve float.
+					if x == 0.0:
+						x = 0.0
+
+					n = struct.unpack('<q', struct.pack('<d', x))[0]
+					
+					if n >= 0:
+						n += 1
+					else:
+						n -= 1
+					return struct.unpack('<d', struct.pack('<q', n))[0]
+					
+				for key in attractiveness:
+					attractiveness[key] = next_up(attractiveness[key])
+				sum_total = next_up(sum_total)
 			
 			#cumulative probability behavior, inspired by: http://stackoverflow.com/a/3679747/5343977
 			#randomly choose the next path
@@ -345,9 +370,7 @@ class ant_colony:
 			for end in range(len(self.pheromone_map)):
 				#decay the pheromone value at this location
 				#tau_xy <- (1-rho)*tau_xy	(ACO)
-				#_DEBUG("BEFORE decay: " + str(self.pheromone_map[start][end]))
 				self.pheromone_map[start][end] = (1-self.pheromone_evaporation_coefficient)*self.pheromone_map[start][end]
-				#_DEBUG("AFTER decay: " + str(self.pheromone_map[start][end]))
 				
 				#then add all contributions to this location for each ant that travered it
 				#(ACO)
@@ -374,6 +397,7 @@ class ant_colony:
 			new_pheromone_value = self.pheromone_constant/ant.get_distance_traveled()
 			
 			self.ant_updated_pheromone_map[route[i]][route[i+1]] = current_pheromone_value + new_pheromone_value
+			self.ant_updated_pheromone_map[route[i+1]][route[i]] = current_pheromone_value + new_pheromone_value
 		
 	def mainloop(self):
 		"""
@@ -383,10 +407,18 @@ class ant_colony:
 			ant.run()
 		runs the simulation self.iterations times
 		"""
+		
 		for _ in range(self.iterations):
+			#start the multi-threaded ants, calls ant.run() in a new thread
 			for ant in self.ants:
-				ant.run()
-				
+				ant.start()
+			
+			#source: http://stackoverflow.com/a/11968818/5343977
+			#wait until the ants are finished, before moving on to modifying shared resources
+			for ant in self.ants:
+				ant.join()
+			
+			for ant in self.ants:	
 				#update ant_updated_pheromone_map with this ant's constribution of pheromones along its route
 				self._populate_ant_updated_pheromone_map(ant)
 				
@@ -421,3 +453,18 @@ class ant_colony:
 			ret.append(self.id_to_key[id])
 		
 		return ret
+
+# def distance(start, end):
+	# x_distance = abs(start[0] - end[0])
+	# y_distance = abs(start[1] - end[1])
+	
+	# #c = sqrt(a^2 + b^2)
+	# import math	
+	# return math.sqrt(pow(x_distance, 2) + pow(y_distance, 2))
+	
+# test = {0: (0, 7), 1: (3, 9), 2: (12, 4), 3: (14, 11), 4: (8, 11), 5: (15, 6), 6: (6, 15), 7: (15, 9), 8: (12, 10), 9: (10, 7)}
+
+# #colony = ant_colony(test, distance, iterations=4, ant_count=5)
+# colony = ant_colony(test, distance)
+# result = colony.mainloop()
+# print(result)
