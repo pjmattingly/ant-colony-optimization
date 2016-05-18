@@ -1,10 +1,7 @@
-debug = True
+from threading import Thread
 
-def _DEBUG(msg):
-	if debug: print("[DEBUG]" + str(msg))
-	
 class ant_colony:
-	class ant:
+	class ant(Thread):
 		def __init__(self, init_location, possible_locations, pheromone_map, distance_callback, alpha, beta, first_pass=False):
 			"""
 			initialized an ant, to traverse the map
@@ -24,6 +21,8 @@ class ant_colony:
 			tour_complete -> flag to indicate the ant has completed its traversal
 				used by get_route() and get_distance_traveled()
 			"""
+			Thread.__init__(self)
+			
 			self.init_location = init_location
 			self.possible_locations = possible_locations			
 			self.route = []
@@ -82,8 +81,8 @@ class ant_colony:
 				attractiveness[possible_next_location] = pow(pheromone_amount, self.alpha)*pow(1/distance, self.beta)
 				sum_total += attractiveness[possible_next_location]
 			
-			#it may be possible to have small values for pheromone amount / distance, such that with rounding errors this is equal to zero
-			#rare, but catch when it happens
+			#it is possible to have small values for pheromone amount / distance, such that with rounding errors this is equal to zero
+			#rare, but handle when it happens
 			if sum_total == 0.0:
 				#increment all zero's, such that they are the smallest non-zero values supported by the system
 				#source: http://stackoverflow.com/a/10426033/5343977
@@ -409,21 +408,17 @@ class ant_colony:
 		runs the simulation self.iterations times
 		"""
 		
-		_DEBUG("mainloop() START")
 		for _ in range(self.iterations):
-			#DEBUG
-			ant_enumeration = dict()
-			ant_count = 0
-			
+			#start the multi-threaded ants, calls ant.run() in a new thread
 			for ant in self.ants:
-				#DEBUG
-				ant_enumeration[ant] = ant_count
-				ant_count += 1
-				
-				_DEBUG("iteration: " + str(_) + " ant: " + str(ant_enumeration[ant]) + " run() START")
-				ant.run()
-				_DEBUG("ant.run() END")
-				
+				ant.start()
+			
+			#source: http://stackoverflow.com/a/11968818/5343977
+			#wait until the ants are finished, before moving on to modifying shared resources
+			for ant in self.ants:
+				ant.join()
+			
+			for ant in self.ants:	
 				#update ant_updated_pheromone_map with this ant's constribution of pheromones along its route
 				self._populate_ant_updated_pheromone_map(ant)
 				
@@ -457,7 +452,6 @@ class ant_colony:
 		for id in self.shortest_path_seen:
 			ret.append(self.id_to_key[id])
 		
-		_DEBUG("mainloop() END")
 		return ret
 
 # def distance(start, end):
@@ -470,6 +464,7 @@ class ant_colony:
 	
 # test = {0: (0, 7), 1: (3, 9), 2: (12, 4), 3: (14, 11), 4: (8, 11), 5: (15, 6), 6: (6, 15), 7: (15, 9), 8: (12, 10), 9: (10, 7)}
 
-# colony = ant_colony(test, distance, iterations=2, ant_count=2)
+# #colony = ant_colony(test, distance, iterations=4, ant_count=5)
+# colony = ant_colony(test, distance)
 # result = colony.mainloop()
 # print(result)
