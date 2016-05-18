@@ -31,9 +31,10 @@ coordinates of those nodes and give it a distance function call back that can ta
 the ACO algorithm as described.
 
 An effort has been made to initialize the algorithm's variables (alpha, beta, Q, etc) to sensible defaults. But your TSP problem
-may differ significantly from the testing set (see test director) and may perform more poorly than optimal.
+may differ significantly from the testing set (see test directory) and may perform more poorly than optimal.
 
-The solution is NOT multithreaded at this time, but I have laid the groundwork for adapting it to a multithreaded solution
-(have the ant class inherit from 'thread' then have its init() run thread.init(), etc).
+The latest release is multithreaded.
 
 A full description of the behavior of the algorithm can be found here: https://en.wikipedia.org/wiki/Ant_colony_optimization_algorithms#Example_pseudo-code_and_formula
+
+Note: Tests that implement finding actual optimal paths may fail occasionally, as this algorithm is semi-random. The default configuration should make this a rare occurance.
